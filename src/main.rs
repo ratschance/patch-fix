@@ -8,6 +8,7 @@ mod patch;
 use glob::glob;
 use patch::*;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn main() {
     let matches = clap_app!(patch_fix =>
@@ -16,20 +17,16 @@ fn main() {
         (about: "Fixes patches that cannot be applied with git-am")
         (@arg signed: -s --signed +takes_value "Name and email for a 'signed off by' line")
         (@arg patch: +required "Patch or directory with patches to apply")
-        (@arg repo: +required "Sets the Git repository to apply commits on")
     ).get_matches();
 
     let mut patch_file = PathBuf::from(matches.value_of("patch").unwrap());
-    let mut repo = PathBuf::from(matches.value_of("repo").unwrap());
     let signed = matches.value_of("signed").unwrap_or("");
 
     if patch_file.is_dir() {
         patch_file.push("*.patch");
         match enumerate_patches(&patch_file) {
             Some(patches) => {
-                for patch in patches {
-                    println!("{}", patch.message);
-                }
+                apply_patches(&patches);
             }
             None => {
                 println!("Unable to continue");
@@ -37,6 +34,53 @@ fn main() {
             }
         }
     }
+}
+
+fn apply_patches(patches: &Vec<Patch>) -> bool {
+    for patch in patches {
+        let result = apply_patch(patch);
+        if !result {
+            return false;
+        }
+    }
+    true
+}
+
+fn apply_patch(patch: &Patch) -> bool {
+    let status = Command::new("patch")
+                         .arg("-i")
+                         .arg(&patch.path)
+                         .status()
+                         .expect("Failed to patch");
+    if !status.success() {
+        return false;
+    };
+    let status = Command::new("git")
+                         .arg("add")
+                         .arg("--all")
+                         .status()
+                         .expect("Unable to git add");
+    if !status.success() {
+        return false;
+    };
+    let status = Command::new("git")
+                         .arg("commit")
+                         .arg("-m")
+                         .arg(&patch.message)
+                         .status()
+                         .expect("Unable to git commit");
+    if !status.success() {
+        return false;
+    };
+    let status = Command::new("git")
+                         .arg("format-patch")
+                         .arg("-1")
+                         .status()
+                         .expect("Unable to git format-patch");
+    if !status.success() {
+        return false;
+    };
+    true
 }
 
 fn enumerate_patches(dir: &PathBuf) -> Option<Vec<Patch>> {
@@ -57,3 +101,4 @@ fn enumerate_patches(dir: &PathBuf) -> Option<Vec<Patch>> {
     }
     Some(patches)
 }
+

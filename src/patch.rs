@@ -28,13 +28,14 @@ pub struct Patch {
     orig_date: String,
     pub message: String,
     pub new_author: Option<String>,
+    pub path: String,
 }
 
 pub fn parse_patch(path: &Path) -> Option<Patch> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(&file);
     let mut current_state = ParseStates::Init;
-    let mut patch: Patch = Default::default();
+    let mut patch = Patch { path: path.to_str().unwrap().to_owned(), ..Default::default() };
 
     for line in reader.lines() {
         let line = line.unwrap();
@@ -108,7 +109,7 @@ pub fn parse_patch(path: &Path) -> Option<Patch> {
                 break;
             }
             ParseStates::Invalid => {
-                println!("Failed to parse: {}", path.display());
+                println!("Failed to parse: {}", patch.path);
                 break;
             }
         }
