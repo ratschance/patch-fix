@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 fn main() {
     let matches = clap_app!(patch_fix =>
-        (version: "v0.0.1")
+        (version: "0.1.0")
         (author: "Conrad Ratschan")
         (about: "Fixes patches that cannot be applied with git-am")
         (@arg signed: -s --signed +takes_value "Name and email for a 'signed off by' line")
