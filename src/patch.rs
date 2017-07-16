@@ -27,11 +27,10 @@ pub struct Patch {
     orig_author: String,
     orig_date: String,
     pub message: String,
-    pub new_author: Option<String>,
     pub path: String,
 }
 
-pub fn parse_patch(path: &Path) -> Option<Patch> {
+pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(&file);
     let mut current_state = ParseStates::Init;
@@ -99,6 +98,14 @@ pub fn parse_patch(path: &Path) -> Option<Patch> {
                     static ref RE: Regex = Regex::new(R_DESC_END).unwrap();
                 }
                 if RE.is_match(&line) {
+                    match *signature {
+                        Some(sig) => {
+                            patch.message.push_str("Signed-off-by: ");
+                            patch.message.push_str(sig);
+                            patch.message.push_str("\n");
+                        }
+                        None => {}
+                    }
                     current_state = ParseStates::Finish;
                 } else {
                     patch.message.push_str(&line);

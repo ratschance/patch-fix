@@ -20,11 +20,12 @@ fn main() {
     ).get_matches();
 
     let mut patch_file = PathBuf::from(matches.value_of("patch").unwrap());
-    let signed = matches.value_of("signed").unwrap_or("");
+    let signed = matches.value_of("signed");
+
 
     if patch_file.is_dir() {
         patch_file.push("*.patch");
-        match enumerate_patches(&patch_file) {
+        match enumerate_patches(&patch_file, &signed) {
             Some(patches) => {
                 apply_patches(&patches);
             }
@@ -83,12 +84,12 @@ fn apply_patch(patch: &Patch) -> bool {
     true
 }
 
-fn enumerate_patches(dir: &PathBuf) -> Option<Vec<Patch>> {
+fn enumerate_patches(dir: &PathBuf, signature: &Option<&str>) -> Option<Vec<Patch>> {
     let mut patches: Vec<Patch> = Vec::new();
     for entry in glob(dir.to_str().unwrap()).expect("Failed to read glob") {
         match entry {
             Ok(path_buf) => {
-                match parse_patch(path_buf.as_path()) {
+                match parse_patch(path_buf.as_path(), signature) {
                     Some(patch) => patches.push(patch),
                     None => return None,
                 }
