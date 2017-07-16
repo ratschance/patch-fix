@@ -16,18 +16,21 @@ fn main() {
         (author: "Conrad Ratschan")
         (about: "Fixes patches that cannot be applied with git-am")
         (@arg signed: -s --signed +takes_value "Name and email for a 'signed off by' line")
+        (@arg start_num: -n --start-number +takes_value "Start number for the patches")
         (@arg patch: +required "Patch or directory with patches to apply")
     ).get_matches();
 
     let mut patch_file = PathBuf::from(matches.value_of("patch").unwrap());
     let signed = matches.value_of("signed");
+    let start_num = matches.value_of("start_num").unwrap_or("1");
+    let start_num = start_num.parse::<usize>().unwrap();
 
 
     if patch_file.is_dir() {
         patch_file.push("*.patch");
         match enumerate_patches(&patch_file, &signed) {
             Some(patches) => {
-                apply_patches(&patches);
+                apply_patches(&patches, start_num);
             }
             None => {
                 println!("Unable to continue");
@@ -37,9 +40,9 @@ fn main() {
     }
 }
 
-fn apply_patches(patches: &Vec<Patch>) -> bool {
-    for patch in patches {
-        let result = apply_patch(patch);
+fn apply_patches(patches: &Vec<Patch>, start_num: usize) -> bool {
+    for (num, patch) in patches.iter().enumerate() {
+        let result = apply_patch(patch, start_num + num);
         if !result {
             return false;
         }
@@ -47,7 +50,7 @@ fn apply_patches(patches: &Vec<Patch>) -> bool {
     true
 }
 
-fn apply_patch(patch: &Patch) -> bool {
+fn apply_patch(patch: &Patch, patch_num: usize) -> bool {
     let status = Command::new("patch")
                          .arg("-i")
                          .arg(&patch.path)
@@ -76,6 +79,8 @@ fn apply_patch(patch: &Patch) -> bool {
     let status = Command::new("git")
                          .arg("format-patch")
                          .arg("-1")
+                         .arg("--start-number")
+                         .arg(patch_num.to_string())
                          .status()
                          .expect("Unable to git format-patch");
     if !status.success() {
