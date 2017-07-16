@@ -113,7 +113,7 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
             }
             ParseStates::Finish => {
-                break;
+                return Some(patch)
             }
             ParseStates::Invalid => {
                 println!("Failed to parse: {}", patch.path);
@@ -121,9 +121,6 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
             }
         }
     }
-    match current_state {
-        ParseStates::Finish => Some(patch),
-        _ => None,
-    }
+    None
 }
 
