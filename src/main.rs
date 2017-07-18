@@ -17,6 +17,7 @@ fn main() {
         (about: "Fixes patches that cannot be applied with git-am")
         (@arg signed: -s --signed +takes_value "Name and email for a 'signed off by' line")
         (@arg start_num: -n --start-number +takes_value "Start number for the patches")
+        (@arg strip: -p --strip +takes_value "Number of leading slashes to remove. See -p from patch for more info")
         (@arg patch: +required "Patch or directory with patches to apply")
     ).get_matches();
 
@@ -24,13 +25,14 @@ fn main() {
     let signed = matches.value_of("signed");
     let start_num = matches.value_of("start_num").unwrap_or("1");
     let start_num = start_num.parse::<usize>().unwrap();
+    let strip_num = matches.value_of("strip").unwrap_or("0");
 
 
     if patch_file.is_dir() {
         patch_file.push("*.patch");
         match enumerate_patches(&patch_file, &signed) {
             Some(patches) => {
-                apply_patches(&patches, start_num);
+                apply_patches(&patches, start_num, strip_num);
             }
             None => {
                 println!("Unable to continue");
@@ -40,9 +42,9 @@ fn main() {
     }
 }
 
-fn apply_patches(patches: &Vec<Patch>, start_num: usize) -> bool {
+fn apply_patches(patches: &Vec<Patch>, start_num: usize, strip_num: &str) -> bool {
     for (num, patch) in patches.iter().enumerate() {
-        let result = apply_patch(patch, start_num + num);
+        let result = apply_patch(patch, start_num + num, strip_num);
         if !result {
             return false;
         }
@@ -50,10 +52,11 @@ fn apply_patches(patches: &Vec<Patch>, start_num: usize) -> bool {
     true
 }
 
-fn apply_patch(patch: &Patch, patch_num: usize) -> bool {
+fn apply_patch(patch: &Patch, patch_num: usize, strip_num: &str) -> bool {
     let status = Command::new("patch")
                          .arg("-i")
                          .arg(&patch.path)
+                         .arg(format!("-p{}", strip_num))
                          .status()
                          .expect("Failed to patch");
     if !status.success() {
