@@ -42,7 +42,7 @@ fn main() {
     }
 }
 
-fn apply_patches(patches: &Vec<Patch>, start_num: usize, strip_num: &str) -> bool {
+fn apply_patches(patches: &[Patch], start_num: usize, strip_num: &str) -> bool {
     for (num, patch) in patches.iter().enumerate() {
         let result = apply_patch(patch, start_num + num, strip_num);
         if !result {

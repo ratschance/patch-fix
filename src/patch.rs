@@ -8,7 +8,6 @@ const R_HASH_LINE: &'static str = r"^From ([0-9a-z]{40}) [A-Z][a-z]{2} ([A-Z][a-
 const R_AUTHOR_LINE: &'static str = r"^From: (.+)$";
 const R_DATE_LINE: &'static str = r"^Date: [A-Z][a-z]{2}, (\d+ [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} -\d{4})$";
 const R_SUBJECT_LINE: &'static str = r"^Subject: \[PATCH\s?\d*/*\d*\] (.+)$";
-const R_DESC_END: &'static str = r"^---$";
 
 enum ParseStates {
     Init,
@@ -40,8 +39,10 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
         let line = line.unwrap();
         match current_state {
             ParseStates::Init => {
-                let re = Regex::new(R_HASH_LINE).unwrap();
-                match re.captures(&line) {
+                lazy_static! {
+                    static ref RE_INIT: Regex = Regex::new(R_HASH_LINE).unwrap();
+                }
+                match RE_INIT.captures(&line) {
                     Some(captures) => {
                         patch.hash.push_str(captures.get(1).unwrap().as_str());
                         patch.from_date.push_str(captures.get(2).unwrap().as_str());
@@ -54,8 +55,10 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
             }
             ParseStates::Author => {
-                let re = Regex::new(R_AUTHOR_LINE).unwrap();
-                match re.captures(&line) {
+                lazy_static! {
+                    static ref RE_AUTHOR: Regex = Regex::new(R_AUTHOR_LINE).unwrap();
+                }
+                match RE_AUTHOR.captures(&line) {
                     Some(captures) => {
                         patch.orig_author.push_str(captures.get(1).unwrap().as_str());
                         current_state = ParseStates::Date;
@@ -67,8 +70,10 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
             }
             ParseStates::Date => {
-                let re = Regex::new(R_DATE_LINE).unwrap();
-                match re.captures(&line) {
+                lazy_static! {
+                    static ref RE_DATE: Regex = Regex::new(R_DATE_LINE).unwrap();
+                }
+                match RE_DATE.captures(&line) {
                     Some(captures) => {
                         patch.orig_date.push_str(captures.get(1).unwrap().as_str());
                         current_state = ParseStates::Subject;
@@ -80,8 +85,10 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
             }
             ParseStates::Subject => {
-                let re = Regex::new(R_SUBJECT_LINE).unwrap();
-                match re.captures(&line) {
+                lazy_static! {
+                    static ref RE_SUB: Regex = Regex::new(R_SUBJECT_LINE).unwrap();
+                }
+                match RE_SUB.captures(&line) {
                     Some(captures) => {
                         patch.message.push_str(captures.get(1).unwrap().as_str());
                         patch.message.push_str("\n");
@@ -94,17 +101,11 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
             }
             ParseStates::Message => {
-                lazy_static! {
-                    static ref RE: Regex = Regex::new(R_DESC_END).unwrap();
-                }
-                if RE.is_match(&line) {
-                    match *signature {
-                        Some(sig) => {
+                if &line == "---" {
+                    if let Some(sig) = *signature {
                             patch.message.push_str("Signed-off-by: ");
                             patch.message.push_str(sig);
                             patch.message.push_str("\n");
-                        }
-                        None => {}
                     }
                     current_state = ParseStates::Finish;
                 } else {
