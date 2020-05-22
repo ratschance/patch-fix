@@ -30,15 +30,8 @@ fn main() {
 
     if patch_file.is_dir() {
         patch_file.push("*.patch");
-        match enumerate_patches(&patch_file, &signed) {
-            Some(patches) => {
-                apply_patches(&patches, start_num, strip_num);
-            }
-            None => {
-                println!("Unable to continue");
-                return; 
-            }
-        }
+        let patches = enumerate_patches(&patch_file, &signed).unwrap();
+        apply_patches(&patches, start_num, strip_num);
     }
 }
 
@@ -86,10 +79,7 @@ fn apply_patch(patch: &Patch, patch_num: usize, strip_num: &str) -> bool {
                          .arg(patch_num.to_string())
                          .status()
                          .expect("Unable to git format-patch");
-    if !status.success() {
-        return false;
-    };
-    true
+    status.success()
 }
 
 fn enumerate_patches(dir: &PathBuf, signature: &Option<&str>) -> Option<Vec<Patch>> {
