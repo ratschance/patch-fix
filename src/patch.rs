@@ -1,13 +1,15 @@
 use regex::Regex;
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
-use std::io::prelude::*;
 
-const R_HASH_LINE: &'static str = r"^From ([0-9a-z]{40}) [A-Z][a-z]{2} ([A-Z][a-z]{2} \d+ \d{2}:\d{2}:\d{2} \d{4})$";
-const R_AUTHOR_LINE: &'static str = r"^From: (.+)$";
-const R_DATE_LINE: &'static str = r"^Date: [A-Z][a-z]{2}, (\d+ [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} -\d{4})$";
-const R_SUBJECT_LINE: &'static str = r"^Subject: \[PATCH\s?\d*/*\d*\] (.+)$";
+const R_HASH_LINE: &str =
+    r"^From ([0-9a-z]{40}) [A-Z][a-z]{2} ([A-Z][a-z]{2} \d+ \d{2}:\d{2}:\d{2} \d{4})$";
+const R_AUTHOR_LINE: &str = r"^From: (.+)$";
+const R_DATE_LINE: &str =
+    r"^Date: [A-Z][a-z]{2}, (\d+ [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} -\d{4})$";
+const R_SUBJECT_LINE: &str = r"^Subject: \[PATCH\s?\d*/*\d*\] (.+)$";
 
 enum ParseStates {
     Init,
@@ -33,7 +35,10 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(&file);
     let mut current_state = ParseStates::Init;
-    let mut patch = Patch { path: path.to_str().unwrap().to_owned(), ..Default::default() };
+    let mut patch = Patch {
+        path: path.to_str().unwrap().to_owned(),
+        ..Default::default()
+    };
 
     for line in reader.lines() {
         let line = line.unwrap();
@@ -60,7 +65,9 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 }
                 match RE_AUTHOR.captures(&line) {
                     Some(captures) => {
-                        patch.orig_author.push_str(captures.get(1).unwrap().as_str());
+                        patch
+                            .orig_author
+                            .push_str(captures.get(1).unwrap().as_str());
                         current_state = ParseStates::Date;
                     }
                     None => {
@@ -91,7 +98,7 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
                 match RE_SUB.captures(&line) {
                     Some(captures) => {
                         patch.message.push_str(captures.get(1).unwrap().as_str());
-                        patch.message.push_str("\n");
+                        patch.message.push('\n');
                         current_state = ParseStates::Message;
                     }
                     None => {
@@ -103,19 +110,17 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
             ParseStates::Message => {
                 if &line == "---" {
                     if let Some(sig) = *signature {
-                            patch.message.push_str("Signed-off-by: ");
-                            patch.message.push_str(sig);
-                            patch.message.push_str("\n");
+                        patch.message.push_str("Signed-off-by: ");
+                        patch.message.push_str(sig);
+                        patch.message.push('\n');
                     }
                     current_state = ParseStates::Finish;
                 } else {
                     patch.message.push_str(&line);
-                    patch.message.push_str("\n");
+                    patch.message.push('\n');
                 }
             }
-            ParseStates::Finish => {
-                return Some(patch)
-            }
+            ParseStates::Finish => return Some(patch),
             ParseStates::Invalid => {
                 println!("Failed to parse: {}", patch.path);
                 break;
@@ -124,4 +129,3 @@ pub fn parse_patch(path: &Path, signature: &Option<&str>) -> Option<Patch> {
     }
     None
 }
-
