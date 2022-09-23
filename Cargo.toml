@@ -1,11 +1,11 @@
 [package]
 name = "patch-fix"
-version = "0.1.0"
-authors = ["Conrad Ratschan <conrad.ratschan@gmail.com>"]
+version = "0.2.0"
+authors = ["Conrad Ratschan <ratschance@gmail.com>"]
 
 [dependencies]
-clap = "2.34"
+clap = "3.2"
 glob = "0.3"
-regex = "1.5"
+regex = "1.6"
 lazy_static = "1.4"
 
